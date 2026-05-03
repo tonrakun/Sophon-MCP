@@ -6,6 +6,7 @@ import { readMarkdownSection } from "./file/read_markdown_section.js";
 import { readCodeSkeleton } from "./file/read_code_skeleton.js";
 import { readCodeBody } from "./file/read_code_body.js";
 import { searchFile } from "./file/search_file.js";
+import { semanticSearch } from "./file/semantic_search.js";
 import { readGitDiff } from "./file/read_git_diff.js";
 import { readJsonYamlKeys } from "./file/read_json_yaml_keys.js";
 import { readJsonYamlValue } from "./file/read_json_yaml_value.js";
@@ -98,6 +99,20 @@ export function registerFileTools(server: McpServer): void {
     },
     async ({ path, query, context_lines }) => {
       const result = searchFile({ path, query, context_lines });
+      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+    }
+  );
+
+  server.tool(
+    "semantic_search",
+    "クエリに意味的に関連する関数・クラスをファイルから検索して本文を返す。read_code_skeletonでシグネチャ一覧を取得しClaudeサブプロセスで関連IDを特定後、read_code_bodyで本文を返す。埋め込みモデル不要。",
+    {
+      path: z.string().describe("検索対象のコードファイルパス"),
+      query: z.string().describe("自然言語による検索クエリ"),
+      max_results: z.number().int().min(1).max(20).optional().describe("返す最大件数（デフォルト: 5）"),
+    },
+    async ({ path, query, max_results }) => {
+      const result = semanticSearch({ path, query, max_results });
       return { content: [{ type: "text", text: JSON.stringify(result) }] };
     }
   );

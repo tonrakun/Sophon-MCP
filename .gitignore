@@ -25,3 +25,8 @@ npm-debug.log*
 # Editor
 .vscode/
 .idea/
+
+# AI
+.mcp.json
+CLAUDE.md
+/.serena

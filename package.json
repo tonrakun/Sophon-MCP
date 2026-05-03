@@ -1,0 +1,30 @@
+{
+  "name": "sophon-mcp",
+  "version": "0.1.0",
+  "description": "Token-efficient MCP server for AI coding",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "sophon-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "better-sqlite3": "^11.10.0",
+    "gpt-tokenizer": "^2.8.1",
+    "ignore": "^7.0.4",
+    "js-yaml": "^4.1.0",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.15.3",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}

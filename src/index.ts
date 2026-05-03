@@ -2,8 +2,16 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { setRoot } from "./utils/path.js";
-import { registerFileTools } from "./tools/index.js";
+import {
+  registerFileTools,
+  registerMemoryTools,
+  registerTaskTools,
+  registerCompressTools,
+  registerWebTools,
+  registerContextTools,
+} from "./tools/index.js";
 import { INSTRUCTIONS } from "./instructions.js";
+import { getDb } from "./db/index.js";
 
 function parseArgs(): { root: string } {
   const args = process.argv.slice(2);
@@ -19,12 +27,20 @@ async function main(): Promise<void> {
   const { root } = parseArgs();
   setRoot(root);
 
-  const server = new McpServer({
-    name: "sophon-mcp",
-    version: "0.1.0",
-  });
+  // Initialize DB (creates sophon.db in cwd)
+  getDb();
+
+  const server = new McpServer(
+    { name: "sophon-mcp", version: "0.1.0" },
+    { instructions: INSTRUCTIONS }
+  );
 
   registerFileTools(server);
+  registerMemoryTools(server);
+  registerTaskTools(server);
+  registerCompressTools(server);
+  registerWebTools(server);
+  registerContextTools(server);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

@@ -1,4 +1,4 @@
-import { getDb } from "../../db/index.js";
+import { getStore, commitStore, now } from "../../store/index.js";
 
 export type MemorySaveInput = {
   key: string;
@@ -12,22 +12,20 @@ export type MemorySaveResult =
 
 export function memorySave(input: MemorySaveInput): MemorySaveResult {
   try {
-    const db = getDb();
-    const tags = JSON.stringify(input.tags ?? []);
-    const now = Math.floor(Date.now() / 1000);
-
-    const existing = db.prepare("SELECT id FROM memories WHERE key = ?").get(input.key) as { id: number } | undefined;
-
+    const store = getStore();
+    const ts = now();
+    const existing = store.memories.find((m) => m.key === input.key);
     if (existing) {
-      db.prepare(
-        "UPDATE memories SET value = ?, tags = ?, updated_at = ? WHERE key = ?"
-      ).run(input.value, tags, now, input.key);
+      existing.value = input.value;
+      existing.tags = input.tags ?? existing.tags;
+      existing.updated_at = ts;
+      commitStore();
       return { ok: true, id: existing.id, created: false };
     } else {
-      const result = db.prepare(
-        "INSERT INTO memories (key, value, tags, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"
-      ).run(input.key, input.value, tags, now, now);
-      return { ok: true, id: result.lastInsertRowid as number, created: true };
+      const id = store.next_memory_id++;
+      store.memories.push({ id, key: input.key, value: input.value, tags: input.tags ?? [], created_at: ts, updated_at: ts });
+      commitStore();
+      return { ok: true, id, created: true };
     }
   } catch (e) {
     return { ok: false, error: String(e) };

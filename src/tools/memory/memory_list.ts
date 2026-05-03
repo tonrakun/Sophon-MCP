@@ -1,35 +1,19 @@
-import { getDb } from "../../db/index.js";
-import type { MemoryRow } from "../../db/schema.js";
-import type { MemoryEntry } from "./memory_get.js";
+import { getStore } from "../../store/index.js";
+import type { MemoryEntry } from "../../store/index.js";
 
-export type MemoryListInput = {
-  tag?: string;
-  search?: string;
-};
-
+export type MemoryListInput = { tag?: string; search?: string };
 export type MemoryListResult =
   | { ok: true; memories: MemoryEntry[] }
   | { ok: false; error: string };
 
 export function memoryList(input: MemoryListInput): MemoryListResult {
   try {
-    const db = getDb();
-    let rows: MemoryRow[];
-
+    let memories = [...getStore().memories].sort((a, b) => b.updated_at - a.updated_at);
+    if (input.tag) memories = memories.filter((m) => m.tags.includes(input.tag!));
     if (input.search) {
-      rows = db.prepare(
-        "SELECT * FROM memories WHERE key LIKE ? OR value LIKE ? ORDER BY updated_at DESC"
-      ).all(`%${input.search}%`, `%${input.search}%`) as MemoryRow[];
-    } else {
-      rows = db.prepare("SELECT * FROM memories ORDER BY updated_at DESC").all() as MemoryRow[];
+      const q = input.search.toLowerCase();
+      memories = memories.filter((m) => m.key.toLowerCase().includes(q) || m.value.toLowerCase().includes(q));
     }
-
-    let memories = rows.map((r) => ({ ...r, tags: JSON.parse(r.tags) as string[] }));
-
-    if (input.tag) {
-      memories = memories.filter((m) => m.tags.includes(input.tag!));
-    }
-
     return { ok: true, memories };
   } catch (e) {
     return { ok: false, error: String(e) };

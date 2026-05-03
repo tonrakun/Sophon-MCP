@@ -1,6 +1,7 @@
 import { execSync } from "node:child_process";
 import { safePath, getRoot } from "../../utils/path.js";
 import { countTokens } from "../../utils/tokens.js";
+import { compressText } from "../compress/compress_text.js";
 
 export interface ReadGitDiffInput {
   path?: string;
@@ -34,11 +35,7 @@ export function readGitDiff(input: ReadGitDiffInput): {
     output += diff;
 
     if (input.compress) {
-      // Simple compression: remove unchanged context marker lines
-      output = output
-        .split("\n")
-        .filter((l) => !l.match(/^\s+\/\//))   // remove comment-only context
-        .join("\n");
+      output = compressText({ text: output }).compressed;
     }
 
     return { diff: output, token_count: countTokens(output) };

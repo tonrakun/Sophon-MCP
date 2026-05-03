@@ -1,46 +1,130 @@
 import { countTokens } from "../../utils/tokens.js";
 
+export type CompressOptions = {
+  remove_markdown_noise?: boolean;
+  remove_code_comments?: boolean;
+  remove_duplicate_lines?: boolean;
+  normalize_whitespace?: boolean;
+  trim_tool_response?: boolean;
+};
+
 export type CompressTextInput = {
   text: string;
-  max_tokens?: number;
+  options?: CompressOptions;
 };
 
 export type CompressTextResult = {
-  text: string;
-  original_tokens: number;
-  compressed_tokens: number;
+  compressed: string;
+  original_token_count: number;
+  compressed_token_count: number;
+  saved_tokens: number;
+  saved_tokens_detail: {
+    markdown_noise: number;
+    code_comments: number;
+    duplicate_lines: number;
+    whitespace: number;
+    tool_response: number;
+  };
   approximate: true;
 };
 
 export function compressText(input: CompressTextInput): CompressTextResult {
-  const original = input.text;
-  const original_tokens = countTokens(original);
-  const max = input.max_tokens ?? 2000;
+  const opts: Required<CompressOptions> = {
+    remove_markdown_noise: input.options?.remove_markdown_noise ?? true,
+    remove_code_comments: input.options?.remove_code_comments ?? false,
+    remove_duplicate_lines: input.options?.remove_duplicate_lines ?? true,
+    normalize_whitespace: input.options?.normalize_whitespace ?? true,
+    trim_tool_response: input.options?.trim_tool_response ?? false,
+  };
 
-  let compressed = original
-    // collapse repeated blank lines
-    .replace(/\n{3,}/g, "\n\n")
-    // strip trailing whitespace on each line
-    .replace(/[ \t]+$/gm, "")
-    // collapse repeated spaces
-    .replace(/[ \t]{2,}/g, " ");
+  const original_token_count = countTokens(input.text);
+  let text = input.text;
+  let prev: number;
+  const detail = { markdown_noise: 0, code_comments: 0, duplicate_lines: 0, whitespace: 0, tool_response: 0 };
 
-  // If still over max_tokens, truncate by lines until under limit
-  if (countTokens(compressed) > max) {
-    const lines = compressed.split("\n");
-    let result = "";
-    for (const line of lines) {
-      const candidate = result ? result + "\n" + line : line;
-      if (countTokens(candidate) > max) break;
-      result = candidate;
-    }
-    compressed = result + (result !== compressed ? "\n…[truncated]" : "");
+  if (opts.remove_markdown_noise) {
+    prev = countTokens(text);
+    text = text
+      // HR lines (---, ***, ___)
+      .replace(/^[-*_]{3,}\s*$/gm, "")
+      // HTML comments
+      .replace(/<!--[\s\S]*?-->/g, "")
+      // badge images like [![...](url)](url)
+      .replace(/\[!\[[^\]]*\]\([^)]*\)\]\([^)]*\)/g, "")
+      // plain images ![alt](url)
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, "");
+    detail.markdown_noise = prev - countTokens(text);
   }
 
+  if (opts.remove_code_comments) {
+    prev = countTokens(text);
+    text = text
+      // single-line // comments (not URLs)
+      .replace(/(?<!:)\/\/(?!\/)[^\n]*/g, "")
+      // block /* ... */ comments
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      // Python/shell # comments (only at line start)
+      .replace(/^[ \t]*#[^\n]*/gm, "");
+    detail.code_comments = prev - countTokens(text);
+  }
+
+  if (opts.remove_duplicate_lines) {
+    prev = countTokens(text);
+    const lines = text.split("\n");
+    const seen = new Set<string>();
+    const deduped: string[] = [];
+    let consecutiveDup = false;
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+      if (trimmed === "") {
+        // preserve blank lines (whitespace step will collapse multiples)
+        deduped.push(lines[i]);
+        consecutiveDup = false;
+        seen.clear();
+        continue;
+      }
+      if (seen.has(trimmed)) {
+        consecutiveDup = true;
+        continue;
+      }
+      seen.add(trimmed);
+      deduped.push(lines[i]);
+      consecutiveDup = false;
+    }
+    text = deduped.join("\n");
+    detail.duplicate_lines = prev - countTokens(text);
+  }
+
+  if (opts.normalize_whitespace) {
+    prev = countTokens(text);
+    text = text
+      .replace(/[ \t]+$/gm, "")
+      .replace(/[ \t]{2,}/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    detail.whitespace = prev - countTokens(text);
+  }
+
+  if (opts.trim_tool_response) {
+    prev = countTokens(text);
+    text = text
+      // null values in JSON-like output
+      .replace(/^.*:\s*null\s*,?\s*$/gm, "")
+      // empty arrays
+      .replace(/^.*:\s*\[\]\s*,?\s*$/gm, "")
+      // long URLs (>80 chars) replaced with placeholder
+      .replace(/https?:\/\/\S{80,}/g, "[url]");
+    detail.tool_response = prev - countTokens(text);
+  }
+
+  const compressed_token_count = countTokens(text);
+
   return {
-    text: compressed,
-    original_tokens,
-    compressed_tokens: countTokens(compressed),
+    compressed: text,
+    original_token_count,
+    compressed_token_count,
+    saved_tokens: original_token_count - compressed_token_count,
+    saved_tokens_detail: detail,
     approximate: true,
   };
 }

@@ -1,5 +1,5 @@
-import { getDb } from "../../db/index.js";
-import type { TaskStatus } from "../../db/schema.js";
+import { getStore, commitStore, now } from "../../store/index.js";
+import type { TaskStatus } from "../../store/index.js";
 
 export type TaskCreateInput = {
   title: string;
@@ -15,23 +15,23 @@ export type TaskCreateResult =
 
 export function taskCreate(input: TaskCreateInput): TaskCreateResult {
   try {
-    const db = getDb();
-    const now = Math.floor(Date.now() / 1000);
-    const tags = JSON.stringify(input.tags ?? []);
+    const store = getStore();
+    const ts = now();
+    const id = store.next_task_id++;
     const status: TaskStatus = "pending";
-    const result = db.prepare(
-      "INSERT INTO tasks (title, description, status, priority, due_date, tags, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-    ).run(
-      input.title,
-      input.description ?? "",
+    store.tasks.push({
+      id,
+      title: input.title,
+      description: input.description ?? "",
       status,
-      input.priority ?? 0,
-      input.due_date ?? null,
-      tags,
-      now,
-      now
-    );
-    return { ok: true, id: result.lastInsertRowid as number };
+      priority: input.priority ?? 0,
+      due_date: input.due_date ?? null,
+      tags: input.tags ?? [],
+      created_at: ts,
+      updated_at: ts,
+    });
+    commitStore();
+    return { ok: true, id };
   } catch (e) {
     return { ok: false, error: String(e) };
   }

@@ -1,5 +1,5 @@
-import { getDb } from "../../db/index.js";
-import type { TaskStatus } from "../../db/schema.js";
+import { getStore, commitStore, now } from "../../store/index.js";
+import type { TaskStatus } from "../../store/index.js";
 
 export type TaskUpdateInput = {
   id: number;
@@ -17,26 +17,20 @@ export type TaskUpdateResult =
 
 export function taskUpdate(input: TaskUpdateInput): TaskUpdateResult {
   try {
-    const db = getDb();
-    const now = Math.floor(Date.now() / 1000);
-    const fields: string[] = [];
-    const values: unknown[] = [];
+    const store = getStore();
+    const task = store.tasks.find((t) => t.id === input.id);
+    if (!task) return { ok: false, error: `Task not found: ${input.id}` };
 
-    if (input.title !== undefined) { fields.push("title = ?"); values.push(input.title); }
-    if (input.description !== undefined) { fields.push("description = ?"); values.push(input.description); }
-    if (input.status !== undefined) { fields.push("status = ?"); values.push(input.status); }
-    if (input.priority !== undefined) { fields.push("priority = ?"); values.push(input.priority); }
-    if ("due_date" in input) { fields.push("due_date = ?"); values.push(input.due_date ?? null); }
-    if (input.tags !== undefined) { fields.push("tags = ?"); values.push(JSON.stringify(input.tags)); }
+    if (input.title !== undefined) task.title = input.title;
+    if (input.description !== undefined) task.description = input.description;
+    if (input.status !== undefined) task.status = input.status;
+    if (input.priority !== undefined) task.priority = input.priority;
+    if ("due_date" in input) task.due_date = input.due_date ?? null;
+    if (input.tags !== undefined) task.tags = input.tags;
+    task.updated_at = now();
 
-    if (fields.length === 0) return { ok: true, updated: false };
-
-    fields.push("updated_at = ?");
-    values.push(now);
-    values.push(input.id);
-
-    const result = db.prepare(`UPDATE tasks SET ${fields.join(", ")} WHERE id = ?`).run(...values);
-    return { ok: true, updated: result.changes > 0 };
+    commitStore();
+    return { ok: true, updated: true };
   } catch (e) {
     return { ok: false, error: String(e) };
   }

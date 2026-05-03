@@ -11,7 +11,6 @@ import {
   registerContextTools,
 } from "./tools/index.js";
 import { INSTRUCTIONS } from "./instructions.js";
-import { getDb } from "./db/index.js";
 
 function parseArgs(): { root: string } {
   const args = process.argv.slice(2);
@@ -26,9 +25,6 @@ function parseArgs(): { root: string } {
 async function main(): Promise<void> {
   const { root } = parseArgs();
   setRoot(root);
-
-  // Initialize DB (creates sophon.db in cwd)
-  getDb();
 
   const server = new McpServer(
     { name: "sophon-mcp", version: "0.1.0" },

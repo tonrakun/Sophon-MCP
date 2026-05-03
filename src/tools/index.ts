@@ -270,16 +270,24 @@ export function registerTaskTools(server: McpServer): void {
   );
 }
 
+const compressOptionsSchema = z.object({
+  remove_markdown_noise: z.boolean().optional().describe("---罫線・HTMLコメント・バッジ画像等を除去（デフォルト: true）"),
+  remove_code_comments: z.boolean().optional().describe("コードコメント（// /* */ #）を除去（デフォルト: false）"),
+  remove_duplicate_lines: z.boolean().optional().describe("連続する重複行を圧縮（デフォルト: true）"),
+  normalize_whitespace: z.boolean().optional().describe("連続空行・余分なスペースを正規化（デフォルト: true）"),
+  trim_tool_response: z.boolean().optional().describe("null・空配列・長いURLを除去（デフォルト: false）"),
+}).optional();
+
 export function registerCompressTools(server: McpServer): void {
   server.tool(
     "compress_text",
-    "テキストを圧縮してトークン数を削減する。大きなテキストをコンテキストに渡す前に使用すること。",
+    "テキストからMarkdownノイズ・コードコメント・重複行・余分な空白を除去して圧縮する。大きなテキストをAIに渡す前に使用すること。",
     {
       text: z.string().describe("圧縮するテキスト"),
-      max_tokens: z.number().int().optional().describe("最大トークン数（デフォルト: 2000）"),
+      options: compressOptionsSchema,
     },
-    async ({ text, max_tokens }) => {
-      const result = compressText({ text, max_tokens });
+    async ({ text, options }) => {
+      const result = compressText({ text, options });
       return { content: [{ type: "text", text: JSON.stringify(result) }] };
     }
   );
@@ -288,13 +296,14 @@ export function registerCompressTools(server: McpServer): void {
 export function registerWebTools(server: McpServer): void {
   server.tool(
     "fetch_webpage",
-    "URLのWebページを取得してテキストとして返す。外部ドキュメントや参考資料の取得に使用すること。",
+    "WebページをMarkdownに変換・圧縮して返す。Webページの取得には必ずこれを使うこと。",
     {
       url: z.string().url().describe("取得するURL"),
       max_tokens: z.number().int().optional().describe("最大トークン数（デフォルト: 4000）"),
+      compress: z.boolean().optional().describe("trueでcompress_textのデフォルトオプションを適用（デフォルト: true）"),
     },
-    async ({ url, max_tokens }) => {
-      const result = await fetchWebpage({ url, max_tokens });
+    async ({ url, max_tokens, compress }) => {
+      const result = await fetchWebpage({ url, max_tokens, compress });
       return { content: [{ type: "text", text: JSON.stringify(result) }] };
     }
   );

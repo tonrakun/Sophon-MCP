@@ -18,7 +18,7 @@ const PATTERNS: { regex: RegExp; type: SkeletonType }[] = [
   // class declaration
   { regex: /^(?:export\s+)?(?:abstract\s+)?class\s+(\w+)/, type: "class" },
   // function declaration (named)
-  { regex: /^(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*(<[^>]*>)?\s*\(/, type: "function" },
+  { regex: /^(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+(\w+)\s*(<[^>]*>)?\s*\(/, type: "function" },
   // arrow function assigned to const/let/var
   { regex: /^(?:export\s+)?(?:const|let|var)\s+(\w+)\s*(?::\s*\S+\s*)?=\s*(?:async\s+)?\(/, type: "function" },
   // method (indented, inside class) — exclude keywords

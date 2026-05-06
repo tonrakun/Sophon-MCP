@@ -15,6 +15,11 @@ function loadGitignore(dir: string): Ignore {
   return ig;
 }
 
+function countEntries(lines: string[]): number {
+  // Count non-directory lines (lines not ending with /)
+  return lines.filter((l) => !l.endsWith("/")).length;
+}
+
 function buildTree(
   dir: string,
   root: string,
@@ -72,8 +77,13 @@ export function readDirectoryTree(input: ReadDirectoryTreeInput): { tree: string
 
   const ig = loadGitignore(root);
   const relTarget = path.relative(root, targetPath) || ".";
-  const lines = [relTarget + "/", ...buildTree(targetPath, root, ig, 1, maxDepth, "")];
+  const treeLines = buildTree(targetPath, root, ig, 1, maxDepth, "");
+  const lines = [relTarget + "/", ...treeLines];
   const tree = lines.join("\n");
 
-  return { tree, token_count: countTokens(tree) };
+  // For small directories (<30 files), skip token counting — the overhead outweighs the benefit
+  const fileCount = countEntries(treeLines);
+  const token_count = fileCount >= 30 ? countTokens(tree) : 0;
+
+  return { tree, token_count };
 }

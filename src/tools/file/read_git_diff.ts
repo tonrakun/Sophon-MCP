@@ -30,8 +30,14 @@ export function readGitDiff(input: ReadGitDiffInput): {
     const stat = execSync(statCmd, { encoding: "utf-8", timeout: 15000 });
     const diff = execSync(diffCmd, { encoding: "utf-8", timeout: 15000 });
 
+    // Count changed lines (+ or - lines, excluding file headers)
+    const changedLines = diff.split("\n").filter(
+      (l) => (l.startsWith("+") || l.startsWith("-")) && !l.startsWith("+++") && !l.startsWith("---")
+    ).length;
+
     let output = "";
-    if (stat.trim()) output += `## Summary\n${stat.trim()}\n\n## Diff\n`;
+    // Only include stat summary for large diffs (≥20 changed lines); for small diffs it adds overhead
+    if (changedLines >= 20 && stat.trim()) output += `## Summary\n${stat.trim()}\n\n## Diff\n`;
     output += diff;
 
     if (input.compress) {

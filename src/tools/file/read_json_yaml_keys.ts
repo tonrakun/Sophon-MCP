@@ -43,11 +43,19 @@ export interface ReadJsonYamlKeysInput {
 }
 
 export function readJsonYamlKeys(input: ReadJsonYamlKeysInput): {
-  keys: KeyEntry[];
+  keys?: KeyEntry[];
+  raw_content?: string;
   token_count: number;
 } {
   const filePath = safePath(input.path);
   const raw = fs.readFileSync(filePath, "utf-8");
+
+  // For small files, return raw content directly — structured key extraction adds more overhead than it saves
+  const rawTokens = countTokens(raw);
+  if (rawTokens < 300) {
+    return { raw_content: raw, token_count: rawTokens };
+  }
+
   const maxDepth = input.depth ?? 3;
 
   let parsed: unknown;

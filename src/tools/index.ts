@@ -23,6 +23,9 @@ import { compressText } from "./compress/compress_text.js";
 import { fetchWebpage } from "./web/fetch_webpage.js";
 import { countTokensTool } from "./context/count_tokens.js";
 import { summarizeConversation } from "./context/summarize_conversation.js";
+import { sessionSnapshot } from "./session/session_snapshot.js";
+import { sessionRestore } from "./session/session_restore.js";
+import { sessionList } from "./session/session_list.js";
 
 export function registerFileTools(server: McpServer): void {
   server.tool(
@@ -71,7 +74,7 @@ export function registerFileTools(server: McpServer): void {
       include_blocks: z.boolean().optional().describe("trueでif/for等のブロックも含む（デフォルト: false）"),
     },
     async ({ path, include_blocks }) => {
-      const result = readCodeSkeleton({ path, include_blocks });
+      const result = await readCodeSkeleton({ path, include_blocks });
       return { content: [{ type: "text", text: JSON.stringify(result) }] };
     }
   );
@@ -112,7 +115,7 @@ export function registerFileTools(server: McpServer): void {
       max_results: z.number().int().min(1).max(20).optional().describe("返す最大件数（デフォルト: 5）"),
     },
     async ({ path, query, max_results }) => {
-      const result = semanticSearch({ path, query, max_results });
+      const result = await semanticSearch({ path, query, max_results });
       return { content: [{ type: "text", text: JSON.stringify(result) }] };
     }
   );
@@ -167,9 +170,10 @@ export function registerMemoryTools(server: McpServer): void {
       key: z.string().describe("メモリのキー（一意）"),
       value: z.string().describe("保存する値"),
       tags: z.array(z.string()).optional().describe("タグリスト（検索用）"),
+      ttl_days: z.number().int().positive().optional().describe("有効期限（日数）。省略時は無期限"),
     },
-    async ({ key, value, tags }) => {
-      const result = memorySave({ key, value, tags });
+    async ({ key, value, tags, ttl_days }) => {
+      const result = memorySave({ key, value, tags, ttl_days });
       return { content: [{ type: "text", text: JSON.stringify(result) }] };
     }
   );
@@ -192,9 +196,10 @@ export function registerMemoryTools(server: McpServer): void {
     {
       tag: z.string().optional().describe("絞り込むタグ"),
       search: z.string().optional().describe("キーまたは値に含まれるキーワード"),
+      prune: z.boolean().optional().describe("trueで期限切れメモリを一括削除してから返す"),
     },
-    async ({ tag, search }) => {
-      const result = memoryList({ tag, search });
+    async ({ tag, search, prune }) => {
+      const result = memoryList({ tag, search, prune });
       return { content: [{ type: "text", text: JSON.stringify(result) }] };
     }
   );
@@ -319,6 +324,44 @@ export function registerWebTools(server: McpServer): void {
     },
     async ({ url, max_tokens, compress }) => {
       const result = await fetchWebpage({ url, max_tokens, compress });
+      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+    }
+  );
+}
+
+export function registerSessionTools(server: McpServer): void {
+  server.tool(
+    "session_snapshot",
+    "現在のタスク・メモリ・直近アクセスファイルのスケルトンをスナップショットとして保存する。作業終了時に呼ぶこと。",
+    {
+      name: z.string().optional().describe("スナップショット名（省略時はタイムスタンプ）"),
+    },
+    async ({ name }) => {
+      const result = await sessionSnapshot({ name });
+      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+    }
+  );
+
+  server.tool(
+    "session_restore",
+    "保存済みスナップショットを復元する。作業開始時に呼ぶことで前回の状態を一発復元できる。",
+    {
+      snapshot_id: z.string().optional().describe("復元するスナップショットID（省略時は最新）"),
+    },
+    async ({ snapshot_id }) => {
+      const result = sessionRestore({ snapshot_id });
+      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+    }
+  );
+
+  server.tool(
+    "session_list",
+    "保存済みスナップショットの一覧を返す。",
+    {
+      limit: z.number().int().positive().optional().describe("取得件数（デフォルト: 10）"),
+    },
+    async ({ limit }) => {
+      const result = sessionList({ limit });
       return { content: [{ type: "text", text: JSON.stringify(result) }] };
     }
   );

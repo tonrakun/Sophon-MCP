@@ -23,14 +23,14 @@ function ensureEmptyMcpConfig(): string {
   return EMPTY_MCP_CONFIG_PATH;
 }
 
-export function semanticSearch(input: SemanticSearchInput): {
+export async function semanticSearch(input: SemanticSearchInput): Promise<{
   matches: Array<{ id: string; name?: string; body: string }>;
   token_count: number;
-} {
+}> {
   // Validate path early
   safePath(input.path);
 
-  const { skeleton } = readCodeSkeleton({ path: input.path, include_blocks: false });
+  const { skeleton } = await readCodeSkeleton({ path: input.path, include_blocks: false });
   if (skeleton.length === 0) {
     return { matches: [], token_count: 0 };
   }

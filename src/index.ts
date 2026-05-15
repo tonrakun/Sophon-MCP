@@ -9,6 +9,7 @@ import {
   registerCompressTools,
   registerWebTools,
   registerContextTools,
+  registerSessionTools,
 } from "./tools/index.js";
 import { INSTRUCTIONS } from "./instructions.js";
 
@@ -37,6 +38,7 @@ async function main(): Promise<void> {
   registerCompressTools(server);
   registerWebTools(server);
   registerContextTools(server);
+  registerSessionTools(server);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

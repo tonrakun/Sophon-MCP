@@ -1,6 +1,6 @@
 {
   "name": "sophon-mcp",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Token-efficient MCP server for AI coding",
   "type": "module",
   "main": "dist/index.js",
@@ -20,6 +20,8 @@
     "gpt-tokenizer": "^2.8.1",
     "ignore": "^7.0.4",
     "js-yaml": "^4.1.0",
+    "tree-sitter-wasms": "^0.1.12",
+    "web-tree-sitter": "^0.22.6",
     "zod": "^3.24.4"
   },
   "devDependencies": {

@@ -170,10 +170,11 @@ export function registerMemoryTools(server: McpServer): void {
       key: z.string().describe("メモリのキー（一意）"),
       value: z.string().describe("保存する値"),
       tags: z.array(z.string()).optional().describe("タグリスト（検索用）"),
-      ttl_days: z.number().int().positive().optional().describe("有効期限（日数）。省略時は無期限"),
+      importance: z.enum(["permanent", "temp"]).optional().describe("重要度。permanent（デフォルト）は永続保存、tempは有効期限付き"),
+      ttl_days: z.number().int().positive().optional().describe("有効期限（日数）。importance: 'temp' のときのみ有効。permanentと同時指定するとエラー"),
     },
-    async ({ key, value, tags, ttl_days }) => {
-      const result = memorySave({ key, value, tags, ttl_days });
+    async ({ key, value, tags, importance, ttl_days }) => {
+      const result = memorySave({ key, value, tags, importance, ttl_days });
       return { content: [{ type: "text", text: JSON.stringify(result) }] };
     }
   );
@@ -335,9 +336,11 @@ export function registerSessionTools(server: McpServer): void {
     "現在のタスク・メモリ・直近アクセスファイルのスケルトンをスナップショットとして保存する。作業終了時に呼ぶこと。",
     {
       name: z.string().optional().describe("スナップショット名（省略時はタイムスタンプ）"),
+      hours_back: z.number().int().positive().optional().describe("アクセスログの遡及時間（時間単位、デフォルト: 24）"),
+      token_limit: z.number().int().positive().optional().describe("スケルトン収集のトークン上限（デフォルト: 2000）"),
     },
-    async ({ name }) => {
-      const result = await sessionSnapshot({ name });
+    async ({ name, hours_back, token_limit }) => {
+      const result = await sessionSnapshot({ name, hours_back, token_limit });
       return { content: [{ type: "text", text: JSON.stringify(result) }] };
     }
   );

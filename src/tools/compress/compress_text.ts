@@ -26,9 +26,15 @@ export type CompressTextResult = {
     tool_response: number;
   };
   approximate: true;
+  tokenizer_info: { tokenizer: "cl100k_base"; margin: "±15%" };
+  pre_compressed_warning?: string;
 };
 
+const SOPHON_PRE_COMPRESSED_MARKER = "<!-- _sophon_pre_compressed -->";
+
 export function compressText(input: CompressTextInput): CompressTextResult {
+  const isPreCompressed = input.text.startsWith(SOPHON_PRE_COMPRESSED_MARKER);
+
   const opts: Required<CompressOptions> = {
     remove_markdown_noise: input.options?.remove_markdown_noise ?? true,
     remove_code_comments: input.options?.remove_code_comments ?? false,
@@ -126,5 +132,9 @@ export function compressText(input: CompressTextInput): CompressTextResult {
     saved_tokens: original_token_count - compressed_token_count,
     saved_tokens_detail: detail,
     approximate: true,
+    tokenizer_info: { tokenizer: "cl100k_base", margin: "±15%" },
+    ...(isPreCompressed
+      ? { pre_compressed_warning: "Input was already compressed by fetch_webpage. Double-compression applied but may reduce quality. Consider using the fetch_webpage output directly." }
+      : {}),
   };
 }

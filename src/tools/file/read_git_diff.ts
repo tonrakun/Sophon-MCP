@@ -1,6 +1,6 @@
 import { execSync } from "node:child_process";
 import { safePath, getRoot } from "../../utils/path.js";
-import { countTokens } from "../../utils/tokens.js";
+import { countTokens, makeTokenCount, type TokenCount } from "../../utils/tokens.js";
 import { compressText } from "../compress/compress_text.js";
 
 export interface ReadGitDiffInput {
@@ -12,7 +12,9 @@ export interface ReadGitDiffInput {
 
 export function readGitDiff(input: ReadGitDiffInput): {
   diff: string;
-  token_count: number;
+  token_count: TokenCount;
+  stat_omitted: boolean;
+  changed_lines: number;
 } {
   const root = getRoot();
   const targetPath = input.path ? safePath(input.path) : root;
@@ -35,16 +37,21 @@ export function readGitDiff(input: ReadGitDiffInput): {
       (l) => (l.startsWith("+") || l.startsWith("-")) && !l.startsWith("+++") && !l.startsWith("---")
     ).length;
 
+    const statOmitted = changedLines < 20;
     let output = "";
-    // Only include stat summary for large diffs (≥20 changed lines); for small diffs it adds overhead
-    if (changedLines >= 20 && stat.trim()) output += `## Summary\n${stat.trim()}\n\n## Diff\n`;
+    if (!statOmitted && stat.trim()) output += `## Summary\n${stat.trim()}\n\n## Diff\n`;
     output += diff;
 
     if (input.compress) {
       output = compressText({ text: output }).compressed;
     }
 
-    return { diff: output, token_count: countTokens(output) };
+    return {
+      diff: output,
+      token_count: makeTokenCount(countTokens(output)),
+      stat_omitted: statOmitted,
+      changed_lines: changedLines,
+    };
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     throw new Error(`git diff failed: ${msg}`);

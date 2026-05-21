@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import yaml from "js-yaml";
 import { safePath } from "../../utils/path.js";
-import { countTokens } from "../../utils/tokens.js";
+import { countTokens, makeTokenCount, type TokenCount } from "../../utils/tokens.js";
 
 function getByPath(obj: unknown, keyPath: string): unknown {
   const parts = keyPath
@@ -24,7 +24,7 @@ export interface ReadJsonYamlValueInput {
 
 export function readJsonYamlValue(input: ReadJsonYamlValueInput): {
   values: { key_path: string; value: unknown }[];
-  token_count: number;
+  token_count: TokenCount;
 } {
   const filePath = safePath(input.path);
   const raw = fs.readFileSync(filePath, "utf-8");
@@ -42,5 +42,5 @@ export function readJsonYamlValue(input: ReadJsonYamlValueInput): {
   }));
 
   const text = JSON.stringify(values);
-  return { values, token_count: countTokens(text) };
+  return { values, token_count: makeTokenCount(countTokens(text)) };
 }

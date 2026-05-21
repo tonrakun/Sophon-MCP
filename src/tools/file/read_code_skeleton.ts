@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import { safePath } from "../../utils/path.js";
-import { countTokens } from "../../utils/tokens.js";
+import { countTokens, makeTokenCount, type TokenCount } from "../../utils/tokens.js";
 import { parseCodeSkeleton } from "../../utils/treesitter.js";
 import { addFileAccess } from "../../store/index.js";
 
@@ -91,7 +91,9 @@ export interface ReadCodeSkeletonInput {
 
 export async function readCodeSkeleton(input: ReadCodeSkeletonInput): Promise<{
   skeleton: SkeletonEntry[];
-  token_count: number;
+  token_count: TokenCount;
+  parser: string;
+  warning?: string;
 }> {
   const filePath = safePath(input.path);
   const content = fs.readFileSync(filePath, "utf-8");
@@ -99,14 +101,24 @@ export async function readCodeSkeleton(input: ReadCodeSkeletonInput): Promise<{
   addFileAccess(filePath);
 
   let skeleton: SkeletonEntry[];
+  let parser = "tree-sitter";
+  let warning: string | undefined;
 
-  const tsEntries = await parseCodeSkeleton(filePath, content);
-  if (tsEntries !== null) {
-    skeleton = tsEntries;
-  } else {
+  try {
+    const tsEntries = await parseCodeSkeleton(filePath, content);
+    if (tsEntries !== null) {
+      skeleton = tsEntries;
+    } else {
+      skeleton = regexFallback(content.split("\n"), input.include_blocks ?? false);
+      parser = "regex-fallback";
+    }
+  } catch (e) {
     skeleton = regexFallback(content.split("\n"), input.include_blocks ?? false);
+    parser = "regex-fallback";
+    warning = `tree-sitter WASM initialization failed: ${String(e)}. Using regex fallback parser.`;
+    process.stderr.write(`[sophon-mcp] WARN: ${warning}\n`);
   }
 
   const text = JSON.stringify(skeleton);
-  return { skeleton, token_count: countTokens(text) };
+  return { skeleton, token_count: makeTokenCount(countTokens(text)), parser, warning };
 }

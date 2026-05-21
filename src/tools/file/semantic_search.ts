@@ -5,13 +5,19 @@ import path from "node:path";
 import { readCodeSkeleton } from "./read_code_skeleton.js";
 import { readCodeBody } from "./read_code_body.js";
 import { safePath } from "../../utils/path.js";
-import { countTokens } from "../../utils/tokens.js";
+import { countTokens, makeTokenCount, type TokenCount } from "../../utils/tokens.js";
 
 export interface SemanticSearchInput {
   path: string;
   query: string;
   max_results?: number;
 }
+
+export type SemanticSearchErrorCode =
+  | "CLI_NOT_FOUND"
+  | "CLI_TIMEOUT"
+  | "PARSE_FAILED"
+  | "EMPTY_RESULT";
 
 // Empty MCP config to prevent Sophon itself from being loaded recursively
 const EMPTY_MCP_CONFIG_PATH = path.join(os.tmpdir(), "sophon-empty-mcp.json");
@@ -25,14 +31,18 @@ function ensureEmptyMcpConfig(): string {
 
 export async function semanticSearch(input: SemanticSearchInput): Promise<{
   matches: Array<{ id: string; name?: string; body: string }>;
-  token_count: number;
+  token_count: TokenCount;
+  error_code?: SemanticSearchErrorCode;
+  fallback?: string;
 }> {
+  const FALLBACK_HINT = "Use search_file as a fallback for keyword-based search.";
+
   // Validate path early
   safePath(input.path);
 
   const { skeleton } = await readCodeSkeleton({ path: input.path, include_blocks: false });
   if (skeleton.length === 0) {
-    return { matches: [], token_count: 0 };
+    return { matches: [], token_count: makeTokenCount(0), error_code: "EMPTY_RESULT", fallback: FALLBACK_HINT };
   }
 
   const maxResults = input.max_results ?? 5;
@@ -55,10 +65,23 @@ export async function semanticSearch(input: SemanticSearchInput): Promise<{
   );
 
   if (result.error) {
-    throw new Error(`claude subprocess error: ${result.error.message}`);
+    const isNotFound = result.error.message.includes("ENOENT") || result.error.message.includes("not found");
+    const errorCode: SemanticSearchErrorCode = isNotFound ? "CLI_NOT_FOUND" : "CLI_TIMEOUT";
+    return {
+      matches: [],
+      token_count: makeTokenCount(0),
+      error_code: errorCode,
+      fallback: FALLBACK_HINT,
+    };
   }
+
   if (result.status !== 0) {
-    throw new Error(`claude exited with code ${result.status}: ${result.stderr?.trim()}`);
+    return {
+      matches: [],
+      token_count: makeTokenCount(0),
+      error_code: "PARSE_FAILED",
+      fallback: FALLBACK_HINT,
+    };
   }
 
   const output = (result.stdout ?? "").trim();
@@ -67,14 +90,19 @@ export async function semanticSearch(input: SemanticSearchInput): Promise<{
     const arrayMatch = output.match(/\[[\s\S]*?\]/);
     if (arrayMatch) ids = JSON.parse(arrayMatch[0]);
   } catch {
-    // leave ids empty — return no matches rather than crashing
+    return {
+      matches: [],
+      token_count: makeTokenCount(0),
+      error_code: "PARSE_FAILED",
+      fallback: FALLBACK_HINT,
+    };
   }
 
   if (ids.length === 0) {
-    return { matches: [], token_count: 0 };
+    return { matches: [], token_count: makeTokenCount(0), error_code: "EMPTY_RESULT", fallback: FALLBACK_HINT };
   }
 
   const { blocks } = readCodeBody({ path: input.path, ids });
   const text = blocks.map((b) => b.body).join("\n");
-  return { matches: blocks, token_count: countTokens(text) };
+  return { matches: blocks, token_count: makeTokenCount(countTokens(text)) };
 }

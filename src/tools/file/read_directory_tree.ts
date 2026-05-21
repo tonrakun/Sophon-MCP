@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import ignore, { type Ignore } from "ignore";
 import { safePath, getRoot, toRelative } from "../../utils/path.js";
-import { countTokens } from "../../utils/tokens.js";
+import { countTokens, makeTokenCount, type TokenCount } from "../../utils/tokens.js";
 
 const ALWAYS_IGNORE = [".git", "node_modules", ".sophon", "dist", ".serena"];
 
@@ -70,7 +70,7 @@ export interface ReadDirectoryTreeInput {
   depth?: number;
 }
 
-export function readDirectoryTree(input: ReadDirectoryTreeInput): { tree: string; token_count: number } {
+export function readDirectoryTree(input: ReadDirectoryTreeInput): { tree: string; token_count: TokenCount } {
   const root = getRoot();
   const targetPath = input.path ? safePath(input.path) : root;
   const maxDepth = input.depth ?? 3;
@@ -83,7 +83,7 @@ export function readDirectoryTree(input: ReadDirectoryTreeInput): { tree: string
 
   // For small directories (<30 files), skip token counting — the overhead outweighs the benefit
   const fileCount = countEntries(treeLines);
-  const token_count = fileCount >= 30 ? countTokens(tree) : 0;
+  const n = fileCount >= 30 ? countTokens(tree) : 0;
 
-  return { tree, token_count };
+  return { tree, token_count: makeTokenCount(n) };
 }

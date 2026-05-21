@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import yaml from "js-yaml";
 import { safePath } from "../../utils/path.js";
-import { countTokens } from "../../utils/tokens.js";
+import { countTokens, makeTokenCount, type TokenCount } from "../../utils/tokens.js";
 
 interface KeyEntry {
   path: string;
@@ -45,15 +45,15 @@ export interface ReadJsonYamlKeysInput {
 export function readJsonYamlKeys(input: ReadJsonYamlKeysInput): {
   keys?: KeyEntry[];
   raw_content?: string;
-  token_count: number;
+  token_count: TokenCount;
 } {
   const filePath = safePath(input.path);
   const raw = fs.readFileSync(filePath, "utf-8");
 
   // For small files, return raw content directly — structured key extraction adds more overhead than it saves
-  const rawTokens = countTokens(raw);
-  if (rawTokens < 300) {
-    return { raw_content: raw, token_count: rawTokens };
+  const rawN = countTokens(raw);
+  if (rawN < 300) {
+    return { raw_content: raw, token_count: makeTokenCount(rawN) };
   }
 
   const maxDepth = input.depth ?? 3;
@@ -69,5 +69,5 @@ export function readJsonYamlKeys(input: ReadJsonYamlKeysInput): {
   collectKeys(parsed, "", 1, maxDepth, keys);
 
   const text = JSON.stringify(keys);
-  return { keys, token_count: countTokens(text) };
+  return { keys, token_count: makeTokenCount(countTokens(text)) };
 }

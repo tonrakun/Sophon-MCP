@@ -17,7 +17,7 @@ export function memoryList(input: MemoryListInput): MemoryListResult {
     if (input.prune) {
       const before = store.memories.length;
       store.memories = store.memories.filter(
-        (m) => !m.expires_at || m.expires_at > nowIso
+        (m) => m.importance !== "temp" || !m.expires_at || m.expires_at > nowIso
       );
       const pruned = before - store.memories.length;
       if (pruned > 0) commitStore();

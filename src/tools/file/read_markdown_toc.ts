@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import { safePath } from "../../utils/path.js";
-import { countTokens } from "../../utils/tokens.js";
+import { countTokens, makeTokenCount, type TokenCount } from "../../utils/tokens.js";
 
 interface TocEntry {
   level: number;
@@ -20,7 +20,7 @@ export interface ReadMarkdownTocInput {
   path: string;
 }
 
-export function readMarkdownToc(input: ReadMarkdownTocInput): { toc: TocEntry[]; token_count: number } {
+export function readMarkdownToc(input: ReadMarkdownTocInput): { toc: TocEntry[]; token_count: TokenCount } {
   const filePath = safePath(input.path);
   const content = fs.readFileSync(filePath, "utf-8");
 
@@ -43,5 +43,5 @@ export function readMarkdownToc(input: ReadMarkdownTocInput): { toc: TocEntry[];
   }
 
   const text = JSON.stringify(toc);
-  return { toc, token_count: countTokens(text) };
+  return { toc, token_count: makeTokenCount(countTokens(text)) };
 }

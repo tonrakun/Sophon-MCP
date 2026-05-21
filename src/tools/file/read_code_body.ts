@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import { safePath } from "../../utils/path.js";
-import { countTokens } from "../../utils/tokens.js";
+import { countTokens, makeTokenCount, type TokenCount } from "../../utils/tokens.js";
 
 interface CodeBlock {
   id: string;
@@ -21,7 +21,7 @@ export interface ReadCodeBodyInput {
 
 export function readCodeBody(input: ReadCodeBodyInput): {
   blocks: CodeBlock[];
-  token_count: number;
+  token_count: TokenCount;
 } {
   const filePath = safePath(input.path);
   const content = fs.readFileSync(filePath, "utf-8");
@@ -55,5 +55,5 @@ export function readCodeBody(input: ReadCodeBodyInput): {
   }
 
   const text = blocks.map((b) => b.body).join("\n");
-  return { blocks, token_count: countTokens(text) };
+  return { blocks, token_count: makeTokenCount(countTokens(text)) };
 }

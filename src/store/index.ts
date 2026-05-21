@@ -7,6 +7,7 @@ export type MemoryEntry = {
   key: string;
   value: string;
   tags: string[];
+  importance: "permanent" | "temp";
   created_at: number;
   updated_at: number;
   expires_at?: string | null;
@@ -77,6 +78,10 @@ function migrate(data: StoreData): StoreData {
   if (!data.session_snapshots) data.session_snapshots = [];
   if (!data.next_snapshot_id) data.next_snapshot_id = 1;
   if (!data.file_access_log) data.file_access_log = [];
+  // v1.3.0: backfill importance — existing records are all permanent
+  for (const m of data.memories) {
+    if (!m.importance) (m as MemoryEntry).importance = "permanent";
+  }
   return data;
 }
 

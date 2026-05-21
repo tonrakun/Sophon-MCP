@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import { safePath } from "../../utils/path.js";
-import { countTokens } from "../../utils/tokens.js";
+import { countTokens, makeTokenCount, type TokenCount } from "../../utils/tokens.js";
 
 interface Match {
   line: number;
@@ -16,7 +16,7 @@ export interface SearchFileInput {
 
 export function searchFile(input: SearchFileInput): {
   matches: Match[];
-  token_count: number;
+  token_count: TokenCount;
 } {
   const filePath = safePath(input.path);
   const content = fs.readFileSync(filePath, "utf-8");
@@ -49,5 +49,5 @@ export function searchFile(input: SearchFileInput): {
   }
 
   const text = matches.map((m) => [m.content, ...m.context].join("\n")).join("\n---\n");
-  return { matches, token_count: countTokens(text) };
+  return { matches, token_count: makeTokenCount(countTokens(text)) };
 }

@@ -1,5 +1,5 @@
 import { getStore } from "../../store/index.js";
-import { countTokens } from "../../utils/tokens.js";
+import { countTokens, makeTokenCount, type TokenCount } from "../../utils/tokens.js";
 
 export type SessionRestoreInput = { snapshot_id?: string };
 
@@ -12,7 +12,7 @@ export type SessionRestoreResult =
       tasks: { id: number; title: string; status: string; note?: string }[];
       memories: { key: string; value: unknown; tags: string[] }[];
       file_skeletons: { path: string; skeleton: object[] }[];
-      token_count: number;
+      token_count: TokenCount;
     }
   | { ok: false; error: string };
 
@@ -51,7 +51,7 @@ export function sessionRestore(input: SessionRestoreInput): SessionRestoreResult
     }));
 
     const file_skeletons = payload.file_skeletons ?? [];
-    const token_count = countTokens(JSON.stringify({ tasks, memories, file_skeletons }));
+    const token_count = makeTokenCount(countTokens(JSON.stringify({ tasks, memories, file_skeletons })));
 
     return {
       ok: true,

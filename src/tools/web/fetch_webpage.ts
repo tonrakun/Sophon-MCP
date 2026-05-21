@@ -1,6 +1,8 @@
 import { countTokens } from "../../utils/tokens.js";
 import { compressText } from "../compress/compress_text.js";
 
+const SOPHON_PRE_COMPRESSED_MARKER = "<!-- _sophon_pre_compressed -->";
+
 export type FetchWebpageInput = {
   url: string;
   max_tokens?: number;
@@ -47,6 +49,8 @@ export async function fetchWebpage(input: FetchWebpageInput): Promise<FetchWebpa
     }
 
     const compressed_token_count = countTokens(output);
+    // Prepend marker so compress_text can detect double-compression
+    output = SOPHON_PRE_COMPRESSED_MARKER + "\n" + output;
 
     return {
       ok: true,

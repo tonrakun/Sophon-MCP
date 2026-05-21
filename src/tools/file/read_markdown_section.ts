@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import { safePath } from "../../utils/path.js";
-import { countTokens } from "../../utils/tokens.js";
+import { countTokens, makeTokenCount, type TokenCount } from "../../utils/tokens.js";
 
 function titleToAnchor(title: string): string {
   return title
@@ -22,7 +22,7 @@ export interface ReadMarkdownSectionInput {
 
 export function readMarkdownSection(input: ReadMarkdownSectionInput): {
   sections: Section[];
-  token_count: number;
+  token_count: TokenCount;
 } {
   const filePath = safePath(input.path);
   const content = fs.readFileSync(filePath, "utf-8");
@@ -65,5 +65,5 @@ export function readMarkdownSection(input: ReadMarkdownSectionInput): {
   }
 
   const text = sections.map((s) => s.content).join("\n");
-  return { sections, token_count: countTokens(text) };
+  return { sections, token_count: makeTokenCount(countTokens(text)) };
 }
